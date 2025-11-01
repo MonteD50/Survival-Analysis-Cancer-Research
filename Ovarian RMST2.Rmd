@@ -1,0 +1,602 @@
+---
+title: "Ovarian RMST2 by Race"
+author: "Valerie Poynor"
+date: "2022-11-04"
+output: pdf_document
+---
+
+```{r setup, echo=FALSE}
+
+def.chunk.hook  <- knitr::knit_hooks$get("chunk")
+knitr::knit_hooks$set(chunk = function(x, options) {
+  x <- def.chunk.hook(x, options)
+  ifelse(options$size != "normalsize", paste0("\\", options$size,"\n\n", x, "\n\n \\normalsize"), x)
+})
+knitr::opts_chunk$set(echo = FALSE,tidy.opts=list(width.cutoff=50),tidy=TRUE, fig.height = 4, fig.width = 6 )
+
+```
+
+
+```{r echo=FALSE, eval = TRUE, results =TRUE }
+
+library(sas7bdat) # read.sas7bdat
+library(survival)
+library(ggplot2)
+library(lubridate)
+library(survminer)
+library(ggsurvfit)
+library(gtsummary)
+library(tidycmprsk)
+library(tidyverse)
+library(Hmisc)
+#library(bshazard)
+library(survRM2)
+
+
+Ovarian <- data.table::fread("ovarian.csv")
+
+Ovarian.ex = filter(Ovarian, exclude ==0) #use this one
+Ovarian.ex1 = filter(Ovarian,exclude1 ==0)
+
+case <- dim(Ovarian.ex)[1] 
+case1 <- dim(Ovarian.ex1)[1] 
+
+```
+
+# Number of complete cases including low-high serous : `r case`
+
+Number of complete cases disregarding low-high serous : `r case1`
+
+We use complete cases with low-high serous information
+
+
+# Counts by race_new
+
+0 = non-Hispanic white\
+1 = Asian Indian/Pakistani\
+2 = Chinese\
+3 = Filipino\
+4 = Japanese\
+5 = Korean\
+6 = Vietnamese\
+7 = Hawaiian/Pacific Islander\
+8 = Other Southeast Asian\
+9 = Other Asian
+
+```{r echo=FALSE, eval = TRUE, results =TRUE }
+
+table_test <- ftable(Ovarian.ex$race_new)
+colnames(table_test) <- c("NHW-0", "AI/P-1", "Chi-2", "Fil-3", "Jap-4", "Kor-5", "Vie-6", "H/PI-7", "OSA-8", "OA-9")
+
+table_test
+
+```
+
+
+# Socioeconomic status of patient Counts by race_new
+
+0 = lowest SES\
+1 = low SES\
+2 = middle SES\
+3 = high SES\
+4 = highest SES\
+5 = missing/unknown
+
+```{r echo=FALSE, eval = TRUE, results =TRUE }
+
+ftable(Ovarian.ex$ses, Ovarian.ex$race_new)
+
+```
+
+
+# Urban Status of patient Counts by race_new
+
+0 = rural\
+1 = urban\
+2 = missing/unknown\
+
+```{r echo=FALSE, eval = TRUE, results =TRUE }
+
+ftable(Ovarian.ex$urban_new, Ovarian.ex$race_new)
+
+
+```
+
+
+# Marital Status of patient Counts by race_new
+
+0 = married\
+1 = not married\
+2 = missing/unknown
+
+```{r echo=FALSE, eval = TRUE, results =TRUE }
+
+ftable(Ovarian.ex$marital, Ovarian.ex$race_new)
+
+```
+
+
+# Year of patient Counts by race_new
+
+0 = 2006\
+1 = 2007\
+2 = 2008\
+3 = 2009\
+4 = 2010\
+…12 = 2018
+
+```{r echo=FALSE, eval = TRUE, results =TRUE }
+
+ftable(Ovarian.ex$year, Ovarian.ex$race_new)
+
+```
+
+# Histology_new of patient Counts by race_new
+
+0 = high-grade serous\
+1 = low-grade serous\
+2 = mucinous\
+3 = endometrioid\
+4 = clear cell\
+5 = carcinosarcoma\
+6 = malignant brenner\
+7 = mixed cell\
+8 = carcinoma, nos
+
+```{r echo=FALSE, eval = TRUE, results =TRUE }
+
+ftable(Ovarian.ex$histology_new, Ovarian.ex$race_new)
+
+
+```
+
+# Stage of patient Counts by race_new
+
+0 = localized\
+1 = regional\
+2 = distant\
+3 = in situ\
+4 = missing/unknown
+
+```{r echo=FALSE, eval = TRUE, results =TRUE }
+
+x <- as.matrix(ftable(Ovarian.ex$stage, Ovarian.ex$race_new))
+
+t <- as.vector(table_test)
+
+round(t(t(x) / t), 3)*100
+
+```
+
+# Grade of patient Counts by race_new
+
+0 = well-differentiated\
+1 = moderately differentiated\
+2 = poorly differentiated\
+3 = undifferentiated\
+4 = grade unknown\
+5 = low grade\
+6 = high grade
+
+```{r echo=FALSE, eval = TRUE, results =TRUE }
+
+ftable(Ovarian.ex$grade, Ovarian.ex$race_new)
+
+
+```
+
+# Site of patient Counts by race_new
+
+0 = ovary\
+1 = fallopian tube\
+2 = peritoneum
+
+```{r echo=FALSE, eval = TRUE, results =TRUE }
+
+ftable(Ovarian.ex$site, Ovarian.ex$race_new)
+
+
+```
+
+# Categorical Age of patient Counts by race_new
+
+0 = <20 years\
+1 = 20-24 years\
+2 = 25-29 years\
+3 = 30-34 years\
+4 = 35-39 years\
+… 14 = 85+ years
+
+```{r echo=FALSE, eval = TRUE, results =TRUE }
+
+ftable(Ovarian.ex$age_cat, Ovarian.ex$race_new)
+
+```
+
+# Overall Status of patient Counts by race_new
+
+0 = dead due to specific cancer\
+1 = dead due to other cause\
+2 = alive
+
+```{r echo=FALSE, eval = TRUE, results =TRUE }
+
+ftable(Ovarian.ex$overallstatus, Ovarian.ex$race_new)
+
+```
+
+# Surgery of Primary site of patient Counts by race_new
+
+0 = no surgery\
+1 = yes, had some surgery
+
+
+```{r echo=FALSE, eval = TRUE, results =TRUE }
+
+ftable(Ovarian.ex$primsurgery, Ovarian.ex$race_new)
+
+```
+
+# Radation of patient Counts by race_new
+
+0 = no radiation or unknown\
+1 = yes, had radiation
+
+
+```{r echo=FALSE, eval = TRUE, results =TRUE }
+
+ftable(Ovarian.ex$radiation, Ovarian.ex$race_new)
+
+```
+
+# Chemotherapy of patient Counts by race_new
+
+0 = no chemotherapy or unknown\
+1 = yes, had chemotherapy
+
+
+```{r echo=FALSE, eval = TRUE, results =TRUE }
+
+ftable(Ovarian.ex$chemo, Ovarian.ex$race_new)
+
+```
+
+
+# Source of patient Counts by race_new
+
+0 = hospital inpatient/outpatient or clinic\
+1 = laboratory only\
+2 = nursing/convalescent home/hospice\
+3 = other hospital outpatient unit or surgery center\
+4 = physician's office/private medical practitioner\
+5 = radiation treatment or medical oncology center\
+6 = autopsy only\
+7 = death certificate only
+
+
+```{r echo=FALSE, eval = TRUE, results =TRUE }
+
+ftable(Ovarian.ex$source, Ovarian.ex$race_new)
+
+```
+
+# Microscopically Confirmed Counts by race_new
+
+
+0 = no, not microscopically confirmed\
+1 = yes, microscopically confirmed\
+2 = missing/unknown
+
+```{r echo=FALSE, eval = TRUE, results =TRUE }
+
+ftable(Ovarian.ex$microconfirm, Ovarian.ex$race_new)
+
+```
+
+
+```{r echo=FALSE, eval = TRUE, results =TRUE }
+
+
+fit <- survfit(Surv(survmonths, statusca) ~ race_new, data = Ovarian.ex)
+
+ggsurvplot(
+   fit,                     # survfit object with calculated statistics.
+   data = Ovarian.ex,             # data used to fit survival curves.
+   risk.table = TRUE,       # show risk table.
+   pval = TRUE,             # show p-value of log-rank test.
+   conf.int = FALSE,         # show confidence intervals for 
+                            # point estimates of survival curves.
+   xlim = c(0,175),         # present narrower X axis, but not affect
+                            # survival estimates.
+   xlab = "Time in months",   # customize X axis label.
+   break.time.by = 100,     # break X axis in time intervals by 500.
+   ggtheme = theme_light(), # customize plot and risk table with a theme.
+ risk.table.y.text.col = T, # colour risk table text annotations.
+  risk.table.y.text = FALSE # show bars instead of names in text annotations
+                            # in legend of risk table
+)
+
+```
+
+# Asian Indian/Pakistani vs Non-Hispanic White RMST
+
+```{r echo=FALSE, eval = TRUE, results =TRUE }
+
+
+length(Ovarian.ex$race_new ==0)
+ind = which(Ovarian.ex$race_new ==0)
+
+length(ind)/9
+
+set = c(rep(3987, 7), rep(3988, 2))
+set
+sum(set)
+length(ind)
+
+set.seed(1)
+
+flds <- sample(ind, length(ind),replace = FALSE)
+
+Ovarian.ex.r1 <- filter(Ovarian.ex, race_new == 1) #non-hispanic white and  Asian Indian/Pakistani
+Ovarian.ex.r1 = rbind(Ovarian.ex.r1, Ovarian.ex[flds[1:3987],])
+
+fit <- survfit(Surv(survmonths, statusca) ~ race_new, data = Ovarian.ex.r1)
+
+ggsurvplot(
+   fit,                     # survfit object with calculated statistics.
+   data = Ovarian.ex.r1,             # data used to fit survival curves.
+   risk.table = TRUE,       # show risk table.
+   pval = TRUE,             # show p-value of log-rank test.
+   conf.int = TRUE,         # show confidence intervals for 
+                            # point estimates of survival curves.
+   xlim = c(0,175),         # present narrower X axis, but not affect
+                            # survival estimates.
+   xlab = "Time in months",   # customize X axis label.
+   break.time.by = 100,     # break X axis in time intervals by 500.
+   ggtheme = theme_light(), # customize plot and risk table with a theme.
+ risk.table.y.text.col = T, # colour risk table text annotations.
+  risk.table.y.text = FALSE # show bars instead of names in text annotations
+                            # in legend of risk table
+)
+
+#X =  Ovarian.ex.r1[,c(5:8,10:14)] #all covariates
+#Ovarian.ex.r1 = as.data.frame(Ovarian.ex.r1)
+#X = model.matrix(~as.factor(Ovarian.ex.r1$ses)+ as.factor(Ovarian.ex.r1$urban_new) +as.factor(Ovarian.ex.r1$marital)+ as.factor(Ovarian.ex.r1$year)+ as.factor(Ovarian.ex.r1$histology_new)+ as.factor(Ovarian.ex.r1$grade)+ as.factor(Ovarian.ex.r1$stage)+ as.factor(Ovarian.ex.r1$site)+ as.factor(Ovarian.ex.r1$age_cat), Ovarian.ex.r1)[,-1]
+
+X = model.matrix(~as.factor(ses)+ as.factor(urban_new) +as.factor(marital)+ as.factor(year)+ as.factor(histology_new)+ #as.factor(grade)+ 
+                   as.factor(stage)+ as.factor(site)+ as.factor(age_cat), Ovarian.ex.r1)[,-1]
+#dim(X)
+#X = data.frame(X)
+#names(X)
+#X= X[,-34]
+y = Ovarian.ex.r1$survmonths
+y[y==0] = 0.0001 #sets 0 survival times to 0.0001
+m1 = rmst2(time = y, status = Ovarian.ex.r1$statusca, arm = Ovarian.ex.r1$race_new, tau=120, covariates = X)
+m1
+
+m.withoutcov = rmst2(time = y, status = Ovarian.ex.r1$statusca, arm = Ovarian.ex.r1$race_new, tau=120)
+
+
+
+plot(m.withoutcov, xlab="Years", ylab="Probability")
+
+```
+
+# Chinese vs Non-Hispanic White RMST
+
+```{r echo=FALSE, eval = TRUE, results =TRUE }
+
+#### Chinese
+Ovarian.ex.r2 <- filter(Ovarian.ex, race_new == 2) #non-hispanic white and  Asian Indian/Pakistani
+a = (set[1]+1)
+b = sum(set[1:2])
+Ovarian.ex.r2 = rbind(Ovarian.ex.r2, Ovarian.ex[flds[a:b],])
+
+fit <- survfit(Surv(survmonths, statusca) ~ race_new, data = Ovarian.ex.r2)
+
+ggsurvplot(
+   fit,                     # survfit object with calculated statistics.
+   data = Ovarian.ex.r2,             # data used to fit survival curves.
+   risk.table = TRUE,       # show risk table.
+   pval = TRUE,             # show p-value of log-rank test.
+   conf.int = TRUE,         # show confidence intervals for 
+                            # point estimates of survival curves.
+   xlim = c(0,175),         # present narrower X axis, but not affect
+                            # survival estimates.
+   xlab = "Time in months",   # customize X axis label.
+   break.time.by = 100,     # break X axis in time intervals by 500.
+   ggtheme = theme_light(), # customize plot and risk table with a theme.
+ risk.table.y.text.col = T, # colour risk table text annotations.
+  risk.table.y.text = FALSE # show bars instead of names in text annotations
+                            # in legend of risk table
+)
+
+X = model.matrix(~as.factor(ses)+ as.factor(urban_new) +as.factor(marital)+ as.factor(year)+ as.factor(histology_new)+ #as.factor(grade)+ 
+                   as.factor(stage)+ as.factor(site)+ as.factor(age_cat), Ovarian.ex.r2)[,-1]
+#dim(X)
+#X = data.frame(X)
+#names(X)
+#X= X[,-34]
+y = Ovarian.ex.r2$survmonths
+Ovarian.ex.r2$race_new[Ovarian.ex.r2$race_new==2]=1
+y[y==0] = 0.0001 #sets 0 survival times to 0.0001
+m2 = rmst2(time = y, status = Ovarian.ex.r2$statusca, arm = Ovarian.ex.r2$race_new, tau=120, covariates = X )
+m2
+
+```
+
+# Filipino vs Non-Hispanic White RMST
+
+```{r echo=FALSE, eval = TRUE, results =TRUE }
+
+#### Filipino
+Ovarian.ex.r3 <- filter(Ovarian.ex, race_new == 3) #non-hispanic white and  Asian Indian/Pakistani
+a = sum(set[1:2])+1
+b = sum(set[1:3])
+Ovarian.ex.r3 = rbind(Ovarian.ex.r3, Ovarian.ex[flds[a:b],])
+
+
+X = model.matrix(~as.factor(ses)+ as.factor(urban_new) +as.factor(marital)+ as.factor(year)+ as.factor(histology_new)+ as.factor(grade)+ as.factor(stage)+ as.factor(site)+ as.factor(age_cat), Ovarian.ex.r3)[,-1]
+dim(X)
+X = data.frame(X)
+names(X)
+X= X[,-34]
+y = Ovarian.ex.r3$survmonths
+Ovarian.ex.r3$race_new[Ovarian.ex.r3$race_new==3]=1
+y[y==0] = 0.0001 #sets 0 survival times to 0.0001
+m3 = rmst2(time = y, status = Ovarian.ex.r3$statusca, arm = Ovarian.ex.r3$race_new, tau=100, covariates = X )
+m3
+
+```
+
+# Japanese vs Non-Hispanic White RMST
+
+```{r echo=FALSE, eval = TRUE, results =TRUE }
+
+
+#### Japanese
+Ovarian.ex.r4 <- filter(Ovarian.ex, race_new == 4) #non-hispanic white and  Asian Indian/Pakistani
+a = sum(set[1:3])+1
+b = sum(set[1:4])
+Ovarian.ex.r4 = rbind(Ovarian.ex.r4, Ovarian.ex[flds[a:b],])
+
+
+X = model.matrix(~as.factor(ses)+ as.factor(urban_new) +as.factor(marital)+ as.factor(year)+ as.factor(histology_new)+ as.factor(grade)+ as.factor(stage)+ as.factor(site)+ as.factor(age_cat), Ovarian.ex.r4)[,-1]
+dim(X)
+X = data.frame(X)
+names(X)
+X= X[,-34]
+y = Ovarian.ex.r4$survmonths
+Ovarian.ex.r4$race_new[Ovarian.ex.r4$race_new==4]=1
+y[y==0] = 0.0001 #sets 0 survival times to 0.0001
+m4 = rmst2(time = y, status = Ovarian.ex.r4$statusca, arm = Ovarian.ex.r4$race_new, tau=100, covariates = X )
+m4
+
+```
+
+# Korean vs Non-Hispanic White RMST
+
+```{r echo=FALSE, eval = TRUE, results =TRUE }
+
+#### Korean
+Ovarian.ex.r5 <- filter(Ovarian.ex, race_new == 5) #non-hispanic white and  Asian Indian/Pakistani
+a = sum(set[1:4])+1
+b = sum(set[1:5])
+Ovarian.ex.r5 = rbind(Ovarian.ex.r5, Ovarian.ex[flds[a:b],])
+
+
+X = model.matrix(~as.factor(ses)+ as.factor(urban_new) +as.factor(marital)+ as.factor(year)+ as.factor(histology_new)+ as.factor(grade)+ as.factor(stage)+ as.factor(site)+ as.factor(age_cat), Ovarian.ex.r5)[,-1]
+dim(X)
+X = data.frame(X)
+names(X)
+X= X[,-34]
+y = Ovarian.ex.r5$survmonths
+Ovarian.ex.r5$race_new[Ovarian.ex.r5$race_new==5]=1
+y[y==0] = 0.0001 #sets 0 survival times to 0.0001
+m5 = rmst2(time = y, status = Ovarian.ex.r5$statusca, arm = Ovarian.ex.r5$race_new, tau=100, covariates = X )
+m5
+
+```
+
+# Vietnamese vs Non-Hispanic White RMST
+
+```{r echo=FALSE, eval = TRUE, results =TRUE }
+
+#### Vietnamese
+Ovarian.ex.r6 <- filter(Ovarian.ex, race_new == 6) #non-hispanic white and  Asian Indian/Pakistani
+a = sum(set[1:5])+1
+b = sum(set[1:6])
+Ovarian.ex.r6 = rbind(Ovarian.ex.r6, Ovarian.ex[flds[a:b],])
+
+
+X = model.matrix(~as.factor(ses)+ as.factor(urban_new) +as.factor(marital)+ as.factor(year)+ as.factor(histology_new)+ as.factor(grade)+ as.factor(stage)+ as.factor(site)+ as.factor(age_cat), Ovarian.ex.r6)[,-1]
+dim(X)
+X = data.frame(X)
+names(X)
+X= X[,-34]
+y = Ovarian.ex.r6$survmonths
+Ovarian.ex.r6$race_new[Ovarian.ex.r6$race_new==6]=1
+y[y==0] = 0.0001 #sets 0 survival times to 0.0001
+m6 = rmst2(time = y, status = Ovarian.ex.r6$statusca, arm = Ovarian.ex.r6$race_new, tau=100, covariates = X )
+m6
+
+```
+
+# Hawaiian/Pacific Islander vs Non-Hispanic White RMST
+
+```{r echo=FALSE, eval = TRUE, results =TRUE }
+
+#### Hawaiian/Pacific Islander
+Ovarian.ex.r7 <- filter(Ovarian.ex, race_new == 7) #non-hispanic white and  Asian Indian/Pakistani
+a = sum(set[1:6])+1
+b = sum(set[1:7])
+Ovarian.ex.r7 = rbind(Ovarian.ex.r7, Ovarian.ex[flds[a:b],])
+
+
+X = model.matrix(~as.factor(ses)+ as.factor(urban_new) +as.factor(marital)+ as.factor(year)+ as.factor(histology_new)+ as.factor(grade)+ as.factor(stage)+ as.factor(site)+ as.factor(age_cat), Ovarian.ex.r7)[,-1]
+dim(X)
+X = data.frame(X)
+names(X)
+X= X[,-34]
+y = Ovarian.ex.r7$survmonths
+Ovarian.ex.r7$race_new[Ovarian.ex.r7$race_new==7]=1
+y[y==0] = 0.0001 #sets 0 survival times to 0.0001
+m7 = rmst2(time = y, status = Ovarian.ex.r7$statusca, arm = Ovarian.ex.r7$race_new, tau=100, covariates = X )
+m7
+```
+
+# Other Southeast Asian vs Non-Hispanic White RMST
+
+```{r echo=FALSE, eval = TRUE, results =TRUE }
+
+#### Other Southeast Asian
+Ovarian.ex.r8 <- filter(Ovarian.ex, race_new == 8) #non-hispanic white and  Asian Indian/Pakistani
+a = sum(set[1:7])+1
+b = sum(set[1:8])
+Ovarian.ex.r8 = rbind(Ovarian.ex.r8, Ovarian.ex[flds[a:b],])
+
+
+X = model.matrix(~as.factor(ses)+ as.factor(urban_new) +as.factor(marital)+ as.factor(year)+ as.factor(histology_new)+ as.factor(grade)+ as.factor(stage)+ as.factor(site)+ as.factor(age_cat), Ovarian.ex.r8)[,-1]
+dim(X)
+X = data.frame(X)
+names(X)
+X= X[,-34]
+y = Ovarian.ex.r8$survmonths
+Ovarian.ex.r8$race_new[Ovarian.ex.r8$race_new==8]=1
+y[y==0] = 0.0001 #sets 0 survival times to 0.0001
+m8 = rmst2(time = y, status = Ovarian.ex.r8$statusca, arm = Ovarian.ex.r8$race_new, tau=100, covariates = X )
+m8
+
+```
+
+# Other Asian vs Non-Hispanic White RMST
+
+```{r echo=FALSE, eval = TRUE, results =TRUE }
+
+
+####  Other Asian
+Ovarian.ex.r9 <- filter(Ovarian.ex, race_new == 9) #non-hispanic white and  Asian Indian/Pakistani
+a = sum(set[1:8])+1
+b = sum(set[1:9])
+Ovarian.ex.r9 = rbind(Ovarian.ex.r9, Ovarian.ex[flds[a:b],])
+
+
+X = model.matrix(~as.factor(ses)+ as.factor(urban_new) +as.factor(marital)+ as.factor(year)+ as.factor(histology_new)+ as.factor(grade)+ as.factor(stage)+ as.factor(site)+ as.factor(age_cat), Ovarian.ex.r9)[,-1]
+dim(X)
+X = data.frame(X)
+names(X)
+X= X[,-34]
+y = Ovarian.ex.r9$survmonths
+Ovarian.ex.r9$race_new[Ovarian.ex.r9$race_new==9]=1
+y[y==0] = 0.0001 #sets 0 survival times to 0.0001
+m9 = rmst2(time = y, status = Ovarian.ex.r9$statusca, arm = Ovarian.ex.r9$race_new, tau=100, covariates = X )
+m9
+
+temp=which(Ovarian.ex$grade == 5)
+View(Ovarian.ex[temp,])
+temp2 = which(Ovarian.ex$grade == 5 & Ovarian.ex$race_new==0)
+length(temp)
+length(temp2)
+length(temp)-length(temp2)
+
+```
